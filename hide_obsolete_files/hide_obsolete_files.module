@@ -4,26 +4,41 @@ use Drupal\Core\File\FileExists;
 use Drupal\file\Entity\File;
 
 /**
- * Gets single file usage and checks against current entity revisions.
+ * Implements hook_install().
+ */
+function hide_obsolete_files_install() {
+  $fids = \Drupal::entityQuery('file')->accessCheck(FALSE)->execute();
+
+  // $fids = [11252];
+
+  foreach ($fids as $fid) {
+    if(!getFileUsage($fid)) {
+      toggleFileObsolete($fid);
+    }
+  }
+}
+
+/**
+ * Gets file usage and checks against current entity revisions.
  */
 function getFileUsage(int $fid) {
-  $file_usage = \Drupal::service("file.usage");
+  $file_usage = \Drupal::service('file.usage');
 
-  $file = \Drupal::entityTypeManager()->getStorage("file")->load($fid);
+  $file = \Drupal::entityTypeManager()->getStorage('file')->load($fid);
   $usage = $file_usage->listUsage($file);
 
-  if (isset($usage["file"]["media"])) {
-    $usage_list = array_keys($usage["file"]["media"]);
+  if (isset($usage['file']['media'])) {
+    $usage_list = array_keys($usage['file']['media']);
 
     foreach ($usage_list as $mid) {
-      $media = \Drupal::entityTypeManager()->getStorage("media")->load($mid);
-      $media_usage = \Drupal::service("entity_usage.usage")->listSources($media);
+      $media = \Drupal::entityTypeManager()->getStorage('media')->load($mid);
+      $media_usage = \Drupal::service('entity_usage.usage')->listSources($media);
       
-      foreach ($media_usage["paragraph"] as $paragraph) {
+      foreach ($media_usage['paragraph'] as $paragraph) {
         $in_current_revision = FALSE;
 
         foreach ($paragraph as $revision) {
-          $revision_entity = \Drupal::entityTypeManager()->getStorage("paragraph")->loadRevision($revision["source_vid"]);
+          $revision_entity = \Drupal::entityTypeManager()->getStorage('paragraph')->loadRevision($revision['source_vid']);
 
           if ($revision_entity->isDefaultRevision()) {
             return TRUE;
@@ -31,11 +46,11 @@ function getFileUsage(int $fid) {
         }
       }
 
-      foreach ($media_usage["node"] as $node) {
+      foreach ($media_usage['node'] as $node) {
         $in_current_revision = FALSE;
 
         foreach ($node as $revision) {
-          $revision_entity = \Drupal::entityTypeManager()->getStorage("paragraph")->loadRevision($revision["source_vid"]);
+          $revision_entity = \Drupal::entityTypeManager()->getStorage('paragraph')->loadRevision($revision['source_vid']);
 
           if ($revision_entity->isDefaultRevision()) {
             return TRUE;
@@ -49,33 +64,10 @@ function getFileUsage(int $fid) {
 }
 
 /**
- * Gets file usages and checks them against current entity revisions.
+ * Adds or removes obsolete flag from filename.
  */
-function getFilesUsage() {
-  $file_usage = \Drupal::service("file.usage");
-  $fids = \Drupal::entityQuery("file")->accessCheck(FALSE)->execute();
-
-  foreach ($fids as $fid) {
-    $file = \Drupal::entityTypeManager()->getStorage("file")->load($fid);
-    $usage = $file_usage->listUsage($file);
-
-    if (isset($usage["file"]["media"])) {
-      $usage_list = array_keys($usage["file"]["media"]);
-
-      foreach ($usage_list as $mid) {
-        $media = \Drupal::entityTypeManager()->getStorage("media")->load($mid);
-
-        // TODO: Check revisions here.
-        return $usage_list;
-      }
-    }
-  }
-}
-
-/**
- * Adds or removes obsolete flag from filename based on entity usage and revisions status.
- */
-function toggleFileObsolete(File $file) {
+function toggleFileObsolete(int $fid) {
+  $file = \Drupal::entityTypeManager()->getStorage('file')->load($fid);
   $filepath = $file->getFileUri();
   $filepath_obsolete = $filepath . '_obsolete';
   $already_obsolete = str_ends_with($filepath, '_obsolete');
@@ -89,6 +81,20 @@ function toggleFileObsolete(File $file) {
     $log_args = [
       '%old' => $file->getFilename(),
       '%new' => $filepath_obsolete,
+    ];
+
+    // Notify and log.
+    $this->logger('file_entity')->info($this->t('File %old renamed to %new'), $log_args);
+  }
+
+  if ($already_obsolete && $has_usage) {
+    $file_system = \Drupal::service('file_system');
+    // Rename existing file.
+    $file_system->move($file->getFileUri(), preg_replace('_obsolete', '', $filepath), FileExists::Replace);
+
+    $log_args = [
+      '%old' => $file->getFilename(),
+      '%new' => $preg_replace('_obsolete', '', $filepath),
     ];
 
     // Notify and log.
