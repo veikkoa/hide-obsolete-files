@@ -1,0 +1,5 @@
+name: 'Hide Obsolete Files'
+type: module
+description: 'Hides files with usage in non-current entity revisions by obfuscating filenames.'
+package: Custom
+core_version_requirement: ^10 || ^11
