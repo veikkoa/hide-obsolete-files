@@ -30,28 +30,29 @@ function getFileUsage(int $fid) {
 
     foreach ($usage_list as $mid) {
       $media = \Drupal::entityTypeManager()->getStorage('media')->load($mid);
-      $media_usage = \Drupal::service('entity_usage.usage')->listSources($media);
+      
+      if ($media->bundle() === 'document') {
+        $media_usage = \Drupal::service('entity_usage.usage')->listSources($media);
 
-      // Scan paragraph usages.
-      foreach ($media_usage['paragraph'] as $paragraph) {
-        foreach ($paragraph as $revision) {
-          $revision_entity = \Drupal::entityTypeManager()->getStorage('paragraph')->loadRevision($revision['source_vid']);
-
-          // Current revision found.
-          if ($revision_entity->isDefaultRevision()) {
-            return TRUE;
+        // Scan paragraph usages.
+        foreach ($media_usage['paragraph'] as $paragraph) {
+          foreach ($paragraph as $revision) {
+            $revision_entity = \Drupal::entityTypeManager()->getStorage('paragraph')->loadRevision($revision['source_vid']);
+            // Current revision found.
+            if ($revision_entity->isDefaultRevision()) {
+              return TRUE;
+            }
           }
         }
-      }
 
-      // Scan node usages.
-      foreach ($media_usage['node'] as $node) {
-        foreach ($node as $revision) {
-          $revision_entity = \Drupal::entityTypeManager()->getStorage('node')->loadRevision($revision['source_vid']);
-
-          // Current revision found.
-          if ($revision_entity->isDefaultRevision()) {
-            return TRUE;
+        // Scan node usages.
+        foreach ($media_usage['node'] as $node) {
+          foreach ($node as $revision) {
+            $revision_entity = \Drupal::entityTypeManager()->getStorage('node')->loadRevision($revision['source_vid']);
+            // Current revision found.
+            if ($revision_entity->isDefaultRevision()) {
+              return TRUE;
+            }
           }
         }
       }
