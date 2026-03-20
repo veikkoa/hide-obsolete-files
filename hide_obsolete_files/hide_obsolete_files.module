@@ -9,11 +9,9 @@ use Drupal\file\Entity\File;
 function hide_obsolete_files_install() {
   $fids = \Drupal::entityQuery('file')->accessCheck(FALSE)->execute();
 
-  // $fids = [11252];
-
   foreach ($fids as $fid) {
     if(!getFileUsage($fid)) {
-      toggleFileObsolete($fid);
+      echo toggleFileObsolete($fid) . "\n";
     }
   }
 }
@@ -33,25 +31,25 @@ function getFileUsage(int $fid) {
     foreach ($usage_list as $mid) {
       $media = \Drupal::entityTypeManager()->getStorage('media')->load($mid);
       $media_usage = \Drupal::service('entity_usage.usage')->listSources($media);
-      
-      foreach ($media_usage['paragraph'] as $paragraph) {
-        $in_current_revision = FALSE;
 
+      // Scan paragraph usages.
+      foreach ($media_usage['paragraph'] as $paragraph) {
         foreach ($paragraph as $revision) {
           $revision_entity = \Drupal::entityTypeManager()->getStorage('paragraph')->loadRevision($revision['source_vid']);
 
+          // Current revision found.
           if ($revision_entity->isDefaultRevision()) {
             return TRUE;
           }
         }
       }
 
+      // Scan node usages.
       foreach ($media_usage['node'] as $node) {
-        $in_current_revision = FALSE;
-
         foreach ($node as $revision) {
-          $revision_entity = \Drupal::entityTypeManager()->getStorage('paragraph')->loadRevision($revision['source_vid']);
+          $revision_entity = \Drupal::entityTypeManager()->getStorage('node')->loadRevision($revision['source_vid']);
 
+          // Current revision found.
           if ($revision_entity->isDefaultRevision()) {
             return TRUE;
           }
@@ -69,35 +67,31 @@ function getFileUsage(int $fid) {
 function toggleFileObsolete(int $fid) {
   $file = \Drupal::entityTypeManager()->getStorage('file')->load($fid);
   $filepath = $file->getFileUri();
-  $filepath_obsolete = $filepath . '_obsolete';
-  $already_obsolete = str_ends_with($filepath, '_obsolete');
-  $has_usage = getFileUsage($file->id());
+  $filepath_obsolete = $filepath . '_obsolete751995';
 
-  if (!$already_obsolete && !$has_usage) {
-    $file_system = \Drupal::service('file_system');
-    // Rename existing file.
-    $file_system->move($file->getFileUri(), $filepath_obsolete, FileExists::Replace);
+  $file_system = \Drupal::service('file_system');
+  $file_not_obsolete = $file_system->getDestinationFilename($filepath_obsolete, FileExists::Error);
 
-    $log_args = [
-      '%old' => $file->getFilename(),
-      '%new' => $filepath_obsolete,
-    ];
+  $file_has_usage = getFileUsage($file->id());
+
+  if ($file_not_obsolete && !$file_has_usage) {
+    // Rename existing file by ADDING "_obsolete751995".
+    $file_system->move($filepath, $filepath_obsolete, FileExists::Replace);
 
     // Notify and log.
-    $this->logger('file_entity')->info($this->t('File %old renamed to %new'), $log_args);
+    \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $filepath_obsolete]);
+    return $filepath_obsolete;
   }
 
-  if ($already_obsolete && $has_usage) {
-    $file_system = \Drupal::service('file_system');
-    // Rename existing file.
-    $file_system->move($file->getFileUri(), preg_replace('_obsolete', '', $filepath), FileExists::Replace);
-
-    $log_args = [
-      '%old' => $file->getFilename(),
-      '%new' => $preg_replace('_obsolete', '', $filepath),
-    ];
+  if (!$file_not_obsolete && $file_has_usage) {
+    // Rename existing file by REMOVING "_obsolete751995".
+    $file_system->move($filepath_obsolete, preg_replace('/_obsolete751995/', '', $filepath), FileExists::Replace);
 
     // Notify and log.
-    $this->logger('file_entity')->info($this->t('File %old renamed to %new'), $log_args);
+    \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $preg_replace('/_obsolete751995/', '', $filepath)]);
+    return $preg_replace('/_obsolete751995/', '', $filepath);
   }
+
+  return 'No files renamed.';
 }
+
