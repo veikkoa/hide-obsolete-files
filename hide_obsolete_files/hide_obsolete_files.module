@@ -10,9 +10,7 @@ function hide_obsolete_files_install() {
   $fids = \Drupal::entityQuery('file')->accessCheck(FALSE)->execute();
 
   foreach ($fids as $fid) {
-    if(!getFileUsage($fid)) {
-      echo toggleFileObsolete($fid) . "\n";
-    }
+    toggleFileObsolete($fid);
   }
 }
 
@@ -80,8 +78,7 @@ function toggleFileObsolete(int $fid) {
     $file_system->move($filepath, $filepath_obsolete, FileExists::Replace);
 
     // Notify and log.
-    \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $filepath_obsolete]);
-    return $filepath_obsolete;
+    \Drupal::logger('hide_obsolete_files')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $filepath_obsolete]);
   }
 
   if (!$file_not_obsolete && $file_has_usage) {
@@ -89,10 +86,9 @@ function toggleFileObsolete(int $fid) {
     $file_system->move($filepath_obsolete, preg_replace('/_obsolete751995/', '', $filepath), FileExists::Replace);
 
     // Notify and log.
-    \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $preg_replace('/_obsolete751995/', '', $filepath)]);
-    return $preg_replace('/_obsolete751995/', '', $filepath);
+    \Drupal::logger('hide_obsolete_files')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $preg_replace('/_obsolete751995/', '', $filepath)]);
   }
 
-  return 'No files renamed.';
+  \Drupal::logger('hide_obsolete_files')->info('No files renamed');
 }
 
