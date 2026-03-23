@@ -1,0 +1,5 @@
+services:
+  hide_obsolete_files.commands:
+    class: \Drupal\hide_obsolete_files\Commands\HideObsoleteFilesCommands
+    tags:
+      - { name: drush.command }
