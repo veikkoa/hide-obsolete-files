@@ -1,0 +1,23 @@
+<?php
+
+use Drupal\Core\File\FileExists;
+use Drupal\file\Entity\File;
+
+/**
+ * Implements hook_ENTITY_TYPE_delete() for files.
+ * 
+ * When deleting files, check if it has been marked obsolete by suffixing the filename.
+ */
+function hide_obsolete_files_file_delete(File $file) {
+  $filepath = $file->getFileUri();
+  $filepath_obsolete = $filepath . '_obsolete751995';
+
+  $file_system = \Drupal::service('file_system');
+  // Returns available filepath or FALSE if file exists in file system (has been marked obsolete).
+  $file_not_marked_obsolete = $file_system->getDestinationFilename($filepath_obsolete, FileExists::Error);
+
+  if (!$file_not_marked_obsolete) {
+    // Delete file with suffix "_obsolete751995".
+    $file_system->delete($filepath_obsolete);
+  }
+}
