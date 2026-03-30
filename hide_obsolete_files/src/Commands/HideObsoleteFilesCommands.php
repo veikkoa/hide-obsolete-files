@@ -23,12 +23,11 @@ class HideObsoleteFilesCommands extends DrushCommands {
     $fids = getFiles($bundle);
 
     foreach ($fids as $fid) {
-      if(!getFileUsage($fid)) {
-        toggleFileObsolete($fid);
-        $count++;
-      }
+      toggleFileObsolete($fid);
+      $count++;
     }
-    \Drupal::logger('file_entity')->info('@count total files found.', ['@count' => $count]);
+
+    \Drupal::logger('hide_obsolete_files')->info('Processed @count files.', ['@count' => $count]);
   }
 
   /**
@@ -47,13 +46,14 @@ class HideObsoleteFilesCommands extends DrushCommands {
       $filepath_obsolete = $filepath . '_obsolete751995';
 
       $file_system = \Drupal::service('file_system');
+      // Returns available filepath or FALSE if file exists in file system (has been marked obsolete).
       $file_not_marked_obsolete = $file_system->getDestinationFilename($filepath_obsolete, FileExists::Error);
 
       if (!$file_not_marked_obsolete) {
         // Rename existing file by REMOVING "_obsolete751995".
         $file_system->move($filepath_obsolete, $filepath, FileExists::Replace);
 
-        \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath_obsolete, '@new' => $filepath]);
+        \Drupal::logger('hide_obsolete_files')->info('File @old renamed to @new', ['@old' => $filepath_obsolete, '@new' => $filepath]);
       }
     }
   }
@@ -145,6 +145,7 @@ class HideObsoleteFilesCommands extends DrushCommands {
     $filepath_obsolete = $filepath . '_obsolete751995';
 
     $file_system = \Drupal::service('file_system');
+    // Returns available filepath or FALSE if file exists in file system (has been marked obsolete).
     $file_not_marked_obsolete = $file_system->getDestinationFilename($filepath_obsolete, FileExists::Error);
 
     $file_has_usage = getFileUsage($file->id());
@@ -153,7 +154,7 @@ class HideObsoleteFilesCommands extends DrushCommands {
       // Rename existing file by ADDING "_obsolete751995".
       $file_system->move($filepath, $filepath_obsolete, FileExists::Replace);
 
-      \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $filepath_obsolete]);
+      \Drupal::logger('hide_obsolete_files')->info('File @old renamed to @new', ['@old' => $filepath, '@new' => $filepath_obsolete]);
       return;
     }
 
@@ -161,7 +162,7 @@ class HideObsoleteFilesCommands extends DrushCommands {
       // Rename existing file by REMOVING "_obsolete751995".
       $file_system->move($filepath_obsolete, $filepath, FileExists::Replace);
 
-      \Drupal::logger('file_entity')->info('File @old renamed to @new', ['@old' => $filepath_obsolete, '@new' => $filepath]);
+      \Drupal::logger('hide_obsolete_files')->info('File @old renamed to @new', ['@old' => $filepath_obsolete, '@new' => $filepath]);
       return;
     }
   }
